@@ -1,0 +1,15 @@
+on:
+  schedule:
+    - cron: "*/30 * * * *"  # every 30 minutes
+  workflow_dispatch:
+
+jobs:
+  send-package-email:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call send-broadcast-email
+        env:
+          SUPABASE_FUNCTION_URL: https://asnkirvhzzpxpcmualwn.supabase.co/functions/v1/send-broadcast-email
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          curl -sS -X GET "$SUPABASE_FUNCTION_URL" -H "Authorization: Bearer $SUPABASE_SERVICE_KEY"
