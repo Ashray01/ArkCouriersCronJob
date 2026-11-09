@@ -1,20 +1,59 @@
+
 name: Trigger Supabase Email Function
 
 on:
   schedule:
-    - cron: "*/5 * * * *"  # Runs every 5 minutes (UTC)
-  workflow_dispatch:         # Allows manual runs from GitHub Actions UI
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
 
 jobs:
   trigger-function:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - name: Call Supabase Edge Function
         env:
           SUPABASE_FUNCTION_URL: https://asnkirvhzzpxpcmualwn.functions.supabase.co/send-package-email
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
         run: |
-          echo "Triggering Supabase function at $SUPABASE_FUNCTION_URL"
-          curl -X GET "$SUPABASE_FUNCTION_URL" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY"
+          set -euo pipefail
+
+          echo "=================================="
+          echo "Starting email queue processor"
+          echo "Time (UTC): $(date -u)"
+          echo "=================================="
+
+          set +e
+
+          HTTP_CODE=$(curl \
+            --silent \
+            --show-error \
+            --fail-with-body \
+            --connect-timeout 15 \
+            --max-time 180 \
+            --output response.txt \
+            --write-out "%{http_code}" \
+            -X GET "$SUPABASE_FUNCTION_URL" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY")
+
+          CURL_EXIT=$?
+
+          set -e
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Curl Exit Code: $CURL_EXIT"
+
+          if [ -f response.txt ]; then
+            echo "Function Response:"
+            cat response.txt
+          fi
+
+          if [ "$CURL_EXIT" -ne 0 ]; then
+            echo "ERROR: Supabase function request failed"
+            exit 1
+          fi
+
+          echo "Email processor completed successfully"
+          echo "Finished at: $(date -u)"
